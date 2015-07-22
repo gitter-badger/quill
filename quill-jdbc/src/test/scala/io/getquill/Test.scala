@@ -13,14 +13,14 @@
 //
 //  object db extends JdbcSource {
 //
-//    val person = entity[Person]
-//    val address = entity[Address]
-//    val street = entity[Street]
+//    def person = entity[Person]
+//    def address = entity[Address]
+//    def street = entity[Street]
 //  }
 //
 //  def q1 = db.person.filter(p => p.name == p.surname).map(p => (p.name, p.age))
 //
-//  val a = q1.run
+//  def a = q1.run
 //
 //  println(q1)
 //  println(q1.run)
@@ -45,47 +45,47 @@
 //  println(q3)
 //  println(q3.run)
 //
-//  val byName = Partial {
-//    (name: String) => db.person.filter(_.name == name)
-//  }
+//  //  def byName = Partial {
+//  //    (name: String) => db.person.filter(_.name == name)
+//  //  }
+//  //
+//  //  def q4 = byName("jesus")
+//  //
+//  //  println(q4)
+//  //  println(q4.run)
 //
-//  val q4 = byName("jesus")
+//  //  def byFullName = Partial {
+//  //    (name: String, surname: String) => byName(name).filter(_.surname == surname)
+//  //  }
+//  //
+//  //  def q5 = byFullName("flavio", "brasil")
+//  //
+//  //  println(q5)
+//  //  println(q5.run)
 //
-//  println(q4)
-//  println(q4.run)
+//  //  def nameEqualsSurname = Partial {
+//  //    (p: Person) => p.name == p.surname
+//  //  }
+//  //
+//  //  println(nameEqualsSurname)
+//  //
+//  //  def q6 = db.person.filter(nameEqualsSurname(_))
+//  //
+//  //  println(q6)
+//  //  println(q6.run)
+//  //
+//  //  def nameIs = Partial {
+//  //    (p: Person, name: String) => p.name == name
+//  //  }
+//  //
+//  //  def q7 = db.person.filter(nameIs(_, "flavio"))
+//  //
+//  //  println(q7)
+//  //  println(q7.run)
 //
-//  val byFullName = Partial {
-//    (name: String, surname: String) => byName(name).filter(_.surname == surname)
-//  }
+//  def names = db.person.map(_.name)
 //
-//  val q5 = byFullName("flavio", "brasil")
-//
-//  println(q5)
-//  println(q5.run)
-//
-//  val nameEqualsSurname = Partial {
-//    (p: Person) => p.name == p.surname
-//  }
-//
-//  println(nameEqualsSurname)
-//
-//  val q6 = db.person.filter(nameEqualsSurname(_))
-//
-//  println(q6)
-//  println(q6.run)
-//
-//  val nameIs = Partial {
-//    (p: Person, name: String) => p.name == name
-//  }
-//
-//  val q7 = db.person.filter(nameIs(_, "flavio"))
-//
-//  println(q7)
-//  println(q7.run)
-//
-//  val names = db.person.map(_.name)
-//
-//  val q8 = for {
+//  def q8 = for {
 //    name <- names
 //    p <- db.person if (p.name == name)
 //  } yield {
@@ -95,12 +95,12 @@
 //  println(q8)
 //  println(q8.run)
 //
-//  val q9 = db.address.map(_.personId)
+//  def q9 = db.address.map(_.personId)
 //
 //  println(q9)
 //  println(q9.run)
 //
-//  val q10 =
+//  def q10 =
 //    for {
 //      p1 <- db.person
 //      p2 <- db.person if (p1.name == p2.name)
@@ -111,7 +111,7 @@
 //  println(q10)
 //  println(q10.run)
 //
-//  val personAndAddress =
+//  def personAndAddress =
 //    for {
 //      p <- db.person
 //      a <- db.address if (a.personId == p.id)
@@ -119,7 +119,7 @@
 //      (p, a)
 //    }
 //
-//  val q11 =
+//  def q11 =
 //    for {
 //      (pp, aa) <- personAndAddress
 //      s <- db.street if (aa.streetId == s.id)

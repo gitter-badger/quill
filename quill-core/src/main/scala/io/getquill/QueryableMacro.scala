@@ -6,44 +6,38 @@ import io.getquill.ast.Parametrized
 import io.getquill.ast.ParametrizedExpr
 import io.getquill.ast.Predicate
 import io.getquill.ast.Query
-import io.getquill.attach.TypeAttachment
 import io.getquill.lifting.Lifting
 import io.getquill.lifting.Unlifting
 import io.getquill.norm.BetaReduction
 import io.getquill.norm.NormalizationMacro
 
-class QueryableMacro(val c: Context)
-    extends TypeAttachment with Lifting with Unlifting with NormalizationMacro {
+class QueryableMacro(val c: Context) extends Lifting with Unlifting {
 
   import c.universe._
 
-  def run[T](implicit t: WeakTypeTag[T]) = 
-    q"${attachmentData(c.prefix.tree)}.run(${c.prefix})"
+  def run[T](implicit t: WeakTypeTag[T]) =
+    q"${c.prefix}.source.run(${c.prefix})"
 
-  def filterPartial[T](f: c.Expr[Partial1[T, Boolean]])(implicit t: WeakTypeTag[T]) = {
-    attachmentMetadata[Parametrized](f.tree) match {
-      case ParametrizedExpr(List(alias), predicate: Predicate) =>
-        toQueryable[T](ast.Filter(attachmentMetadata[Query](c.prefix.tree), alias, predicate))
-    }
-  }
-
-  def filter[T](f: c.Expr[T => Any])(implicit t: WeakTypeTag[T]) = {
+  def filter[R: WeakTypeTag, S: WeakTypeTag, T: WeakTypeTag](f: c.Expr[T => Boolean]) = {
+    debug(f)
     f.tree match {
       case q"($input) => $body" if (input.name.toString.contains("ifrefutable")) =>
         c.prefix.tree
       case q"(${ alias: ast.Ident }) => ${ body: ast.Predicate }" =>
-        toQueryable[T](ast.Filter(attachmentMetadata[Query](c.prefix.tree), alias, body))
+        toQueryable[R, S, T](ast.Filter(fromQueryable(c.prefix.tree), alias, body))
     }
   }
 
-  def map[T, R](f: c.Expr[T => R])(implicit t: WeakTypeTag[T], r: WeakTypeTag[R]) = {
+  def map[R: WeakTypeTag, S: WeakTypeTag, T: WeakTypeTag, U: WeakTypeTag](f: c.Expr[T => R]) = {
+    debug(f)
     f.tree match {
       case q"(${ alias: ast.Ident }) => ${ body: ast.Expr }" =>
-        toQueryable[R](ast.Map(attachmentMetadata[Query](c.prefix.tree), alias, body))
+        toQueryable[R, S, T](ast.Map(fromQueryable(c.prefix.tree), alias, body))
     }
   }
 
-  def flatMap[T, R](f: c.Expr[T => Queryable[R]])(implicit t: WeakTypeTag[T], r: WeakTypeTag[R]) = {
+  def flatMap[R: WeakTypeTag, S <: Source[R]: WeakTypeTag, T: WeakTypeTag, U: WeakTypeTag](f: c.Expr[T => Queryable[R, S, U]]) = {
+    debug(f)
     f.tree match {
       case q"(${ alias: ast.Ident }) => ${ matchAlias: ast.Ident } match { case (..$a) => $body }" if (alias == matchAlias) =>
         val aliases =
@@ -51,18 +45,23 @@ class QueryableMacro(val c: Context)
             case Bind(name, _) =>
               ast.Ident(name.decodedName.toString)
           }
-        val query = attachmentMetadata[Query](body)
+        val query = fromQueryable(body)
         val reduction =
           for ((a, i) <- aliases.zipWithIndex) yield {
             a -> ast.Property(alias, s"_${i + 1}")
           }
-        toQueryable[R](ast.FlatMap(attachmentMetadata[Query](c.prefix.tree), alias, BetaReduction(query)(reduction.toMap)))
+        toQueryable[R, S, U](ast.FlatMap(fromQueryable(c.prefix.tree), alias, BetaReduction(query)(reduction.toMap)))
       case q"(${ alias: ast.Ident }) => $body" =>
-        toQueryable[R](ast.FlatMap(attachmentMetadata[Query](c.prefix.tree), alias, attachmentMetadata[Query](body)))
+        toQueryable[R, S, U](ast.FlatMap(fromQueryable(c.prefix.tree), alias, fromQueryable(body)))
     }
   }
 
-  private def toQueryable[T](query: Query)(implicit t: WeakTypeTag[T]) =
-    to[Queryable[T]].attach(attachmentData(c.prefix.tree), query)
+  private def toQueryable[R: WeakTypeTag, S: WeakTypeTag, T: WeakTypeTag](query: Query)(implicit t: WeakTypeTag[T]) =
+    q"$queryable[$t]($query, ${c.prefix}.source)"
+
+  private def fromQueryable(tree: Tree) =
+    tree match {
+      case q"$queryable[$t](${ query: Query }, $source)" => query
+    }
 
 }

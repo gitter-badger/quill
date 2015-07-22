@@ -5,29 +5,28 @@ import io.getquill.ast._
 import io.getquill.util.Show._
 import io.getquill.ast.Expr
 import ExprShow.exprShow
-import io.getquill.attach.TypeAttachment
 import io.getquill.Source
 import io.getquill.util.ImplicitResolution
 import io.getquill.Encoder
 import io.getquill.lifting.Unlifting
+import io.getquill.QueryableMacro
+import io.getquill.lifting.Lifting
 
 trait NormalizationMacro extends ImplicitResolution {
-  this: TypeAttachment with Unlifting =>
+  this: Unlifting with Lifting =>
 
   val c: Context
   import c.universe.{ Expr => _, Ident => _, _ }
 
   case class NormalizedQuery[R, T](query: Query, extractor: Tree)
 
-  def normalize[T](queryTree: Tree)(implicit t: WeakTypeTag[T]) = {
-    val dbType = attachmentDataTypeSymbol(queryTree)
-    val rowType = dbType.toType.baseType(c.typeOf[Source[_]].typeSymbol).typeArgs.head
-    val query = AdHocReduction(SymbolicReduction(attachmentMetadata[Query](queryTree)))
+  def normalize[R, S, T](queryTree: Tree)(implicit t: WeakTypeTag[T], s: WeakTypeTag[S], r: WeakTypeTag[R]) = {
+    val query = AdHocReduction(SymbolicReduction(fromQueryable(queryTree)))
     def inferEncoder(tpe: Type) =
-      inferImplicitValueWithFallback(encoderType(c.WeakTypeTag(tpe), c.WeakTypeTag(rowType)).tpe, dbType.toType, attachmentData(queryTree))
+      inferImplicitValueWithFallback(encoderType(c.WeakTypeTag(tpe), r).tpe, s.tpe, q"${c.prefix}.source")
     def encoderType[T, R](implicit t: WeakTypeTag[T], r: WeakTypeTag[R]) =
       c.weakTypeTag[Encoder[R, T]]
-    val (sql, materialize) = expand(inferEncoder, query)(t, c.WeakTypeTag(rowType))
+    val (sql, materialize) = expand(inferEncoder, query)(t, r)
     NormalizedQuery(sql, materialize)
   }
 
@@ -121,6 +120,14 @@ trait NormalizationMacro extends ImplicitResolution {
         }
     }
   }
+
+  private def toQueryable[T](query: Query)(implicit t: WeakTypeTag[T]) =
+    q"$queryable[$t]($query, ${c.prefix}.source)"
+
+  private def fromQueryable(tree: Tree) =
+    tree match {
+      case q"$queryable[$t](${ query: Query }, $source)" => query
+    }
 
   private def constructor(t: Type) =
     t.members.collect {

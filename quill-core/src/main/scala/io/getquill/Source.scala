@@ -15,10 +15,10 @@ abstract class Source[R: ClassTag] {
 
   type Encoder[T] = io.getquill.Encoder[R, T]
 
-  protected def entity[T]: Any = macro SourceMacro.entity[T, R]
+  protected def entity[T]: Any = macro SourceMacro.entity[R, T]
 
   protected def config =
     ConfigFactory.load.getConfig(getClass.getSimpleName.replaceAllLiterally("$", ""))
 
-  def run[T](q: Queryable[T]): Any = ???
+  def run[T](q: Queryable[R, this.type, T]): Any = ???
 }

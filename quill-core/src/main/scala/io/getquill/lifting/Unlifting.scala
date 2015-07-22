@@ -3,28 +3,30 @@ package io.getquill.lifting
 import scala.reflect.macros.whitebox.Context
 import io.getquill.Queryable
 import io.getquill.ast._
+import io.getquill.Queryable
 
 trait Unlifting {
   val c: Context
   import c.universe.{ Function => _, Expr => _, Ident => _, Constant => _, _ }
 
-  private val pack = q"io.getquill.ast"
-
+  private val ast = q"io.getquill.ast"
+  val queryable = q"io.getquill.Queryable"
+  
   implicit val queryUnlift: Unliftable[Query] = Unliftable[Query] {
-    case q"$pack.Table.apply(${ name: String })" =>
+    case q"$ast.Table.apply(${ name: String })" =>
       Table(name)
-    case q"$pack.Filter.apply(${ source: Query }, ${ alias: Ident }, ${ body: Predicate })" =>
+    case q"$ast.Filter.apply(${ source: Query }, ${ alias: Ident }, ${ body: Predicate })" =>
       Filter(source, alias, body)
-    case q"$pack.Map.apply(${ source: Query }, ${ alias: Ident }, ${ body: Expr })" =>
+    case q"$ast.Map.apply(${ source: Query }, ${ alias: Ident }, ${ body: Expr })" =>
       Map(source, alias, body)
-    case q"$pack.FlatMap.apply(${ source: Query }, ${ alias: Ident }, ${ body: Query })" =>
+    case q"$ast.FlatMap.apply(${ source: Query }, ${ alias: Ident }, ${ body: Query })" =>
       FlatMap(source, alias, body)
   }
 
   implicit val exprUnlift: Unliftable[Expr] = Unliftable[Expr] {
-    case q"$pack.Subtract.apply(${ a: Expr }, ${ b: Expr })" =>
+    case q"$ast.Subtract.apply(${ a: Expr }, ${ b: Expr })" =>
       Subtract(a, b)
-    case q"$pack.Add.apply(${ a: Expr }, ${ b: Expr })" =>
+    case q"$ast.Add.apply(${ a: Expr }, ${ b: Expr })" =>
       Add(a, b)
     case q"${ a: Expr } - ${ b: Expr }" =>
       Subtract(a, b)
@@ -37,39 +39,39 @@ trait Unlifting {
   }
 
   implicit val predicateUnlift: Unliftable[Predicate] = Unliftable[Predicate] {
-    case q"$pack.Equals.apply(${ a: Expr }, ${ b: Expr })" =>
+    case q"$ast.Equals.apply(${ a: Expr }, ${ b: Expr })" =>
       Equals(a, b)
     case q"${ a: Expr } == ${ b: Expr }" =>
       Equals(a, b)
 
-    case q"$pack.And.apply(${ a: Predicate }, ${ b: Predicate })" =>
+    case q"$ast.And.apply(${ a: Predicate }, ${ b: Predicate })" =>
       And(a, b)
     case q"${ a: Predicate } && ${ b: Predicate }" =>
       And(a, b)
 
-    case q"$pack.GreaterThanOrEqual.apply(${ a: Expr }, ${ b: Expr })" =>
+    case q"$ast.GreaterThanOrEqual.apply(${ a: Expr }, ${ b: Expr })" =>
       GreaterThanOrEqual(a, b)
     case q"${ a: Expr } >= ${ b: Expr }" =>
       GreaterThanOrEqual(a, b)
 
-    case q"$pack.GreaterThan.apply(${ a: Expr }, ${ b: Expr })" =>
+    case q"$ast.GreaterThan.apply(${ a: Expr }, ${ b: Expr })" =>
       GreaterThan(a, b)
     case q"${ a: Expr } > ${ b: Expr }" =>
       GreaterThan(a, b)
 
-    case q"$pack.LessThanOrEqual.apply(${ a: Expr }, ${ b: Expr })" =>
+    case q"$ast.LessThanOrEqual.apply(${ a: Expr }, ${ b: Expr })" =>
       LessThanOrEqual(a, b)
     case q"${ a: Expr } <= ${ b: Expr }" =>
       LessThanOrEqual(a, b)
 
-    case q"$pack.LessThan.apply(${ a: Expr }, ${ b: Expr })" =>
+    case q"$ast.LessThan.apply(${ a: Expr }, ${ b: Expr })" =>
       LessThan(a, b)
     case q"${ a: Expr } < ${ b: Expr }" =>
       LessThan(a, b)
   }
 
   implicit val refUnlift: Unliftable[Ref] = Unliftable[Ref] {
-    case q"$pack.Property.apply(${ expr: Expr }, ${ name: String })" =>
+    case q"$ast.Property.apply(${ expr: Expr }, ${ name: String })" =>
       Property(expr, name)
     case q"${ value: Value }" =>
       value
@@ -80,15 +82,15 @@ trait Unlifting {
   }
 
   implicit val valueUnlift: Unliftable[Value] = Unliftable[Value] {
-    case q"$pack.Tuple.apply(immutable.this.List.apply[$t](..$v))" =>
+    case q"$ast.Tuple.apply(immutable.this.List.apply[$t](..$v))" =>
       val values =
         v.map {
           case q"${ expr: Expr }" => expr
         }
       Tuple(values)
-    case q"$pack.Constant.apply(${ Literal(c.universe.Constant(v)) })" =>
+    case q"$ast.Constant.apply(${ Literal(c.universe.Constant(v)) })" =>
       Constant(v)
-    case q"$pack.NullValue" =>
+    case q"$ast.NullValue" =>
       NullValue
     case q"null" =>
       NullValue
@@ -103,7 +105,7 @@ trait Unlifting {
   }
 
   implicit val identUnift: Unliftable[Ident] = Unliftable[Ident] {
-    case q"$pack.Ident.apply(${ name: String })" =>
+    case q"$ast.Ident.apply(${ name: String })" =>
       Ident(name)
     case t: ValDef =>
       Ident(t.name.decodedName.toString)
@@ -121,7 +123,7 @@ trait Unlifting {
   }
 
   implicit val parametrizedQueryUnlift: Unliftable[ParametrizedQuery] = Unliftable[ParametrizedQuery] {
-    case q"$pack.ParametrizedQuery.apply(immutable.this.List.apply[$t](..$p), ${ query: Query })" =>
+    case q"$ast.ParametrizedQuery.apply(immutable.this.List.apply[$t](..$p), ${ query: Query })" =>
       val params =
         p.map {
           case q"${ ident: Ident }" => ident
@@ -130,7 +132,7 @@ trait Unlifting {
   }
 
   implicit val parametrizedExprUnlift: Unliftable[ParametrizedExpr] = Unliftable[ParametrizedExpr] {
-    case q"$pack.ParametrizedExpr.apply(immutable.this.List.apply[$t](..$p), ${ expr: Expr })" =>
+    case q"$ast.ParametrizedExpr.apply(immutable.this.List.apply[$t](..$p), ${ expr: Expr })" =>
       val params =
         p.map {
           case q"${ ident: Ident }" => ident
