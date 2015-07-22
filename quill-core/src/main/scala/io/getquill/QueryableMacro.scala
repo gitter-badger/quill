@@ -32,7 +32,7 @@ class QueryableMacro(val c: Context) extends Lifting with Unlifting {
     debug(f)
     f.tree match {
       case q"(${ alias: ast.Ident }) => ${ body: ast.Expr }" =>
-        toQueryable[R, S, T](ast.Map(fromQueryable(c.prefix.tree), alias, body))
+        toQueryable[R, S, U](ast.Map(fromQueryable(c.prefix.tree), alias, body))
     }
   }
 
@@ -56,12 +56,12 @@ class QueryableMacro(val c: Context) extends Lifting with Unlifting {
     }
   }
 
-  private def toQueryable[R: WeakTypeTag, S: WeakTypeTag, T: WeakTypeTag](query: Query)(implicit t: WeakTypeTag[T]) =
-    q"$queryable[$t]($query, ${c.prefix}.source)"
+  private def toQueryable[R, S, T](query: Query)(implicit r: WeakTypeTag[R], s: WeakTypeTag[S], t: WeakTypeTag[T]) =
+    q"$queryable[$r, $s, $t]($query, ${c.prefix}.source)"
 
   private def fromQueryable(tree: Tree) =
     tree match {
-      case q"$queryable[$t](${ query: Query }, $source)" => query
+      case q"$queryable[$r, $s, $t](${ query: Query }, $source)" => query
     }
 
 }

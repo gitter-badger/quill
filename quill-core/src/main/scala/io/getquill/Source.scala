@@ -1,5 +1,6 @@
 package io.getquill
 
+import language.dynamics
 import language.experimental.macros
 import scala.reflect.ClassTag
 import io.getquill.ast.Ident
@@ -14,11 +15,11 @@ abstract class Encoder[R: ClassTag, T: ClassTag] {
 abstract class Source[R: ClassTag] {
 
   type Encoder[T] = io.getquill.Encoder[R, T]
-
-  protected def entity[T]: Any = macro SourceMacro.entity[R, T]
+  
+  def apply[T]: Any = macro SourceMacro.entity[R, T]
 
   protected def config =
     ConfigFactory.load.getConfig(getClass.getSimpleName.replaceAllLiterally("$", ""))
 
-  def run[T](q: Queryable[R, this.type, T]): Any = ???
+  def run[T](q: Queryable[_, _, _]): Any = macro SourceMacro.run
 }
